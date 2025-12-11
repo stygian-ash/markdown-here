@@ -446,7 +446,7 @@ Lexer.prototype.token = function(src, top, bq) {
  */
 
 var inline = {
-  escape: /^\\([\\`*{}\[\]()#+\-.!_>\$])/, /* adam-p: added \$ for math support */
+  escape: /^\\([\\`*{}\[\]()#+\-.!_>\$^\~])/, /* adam-p: added \$ for math support */
   autolink: /^<([^ >]+(@|:\/)[^ >]+)>/,
   url: noop,
   tag: /^<!--[\s\S]*?-->|^<\/?\w+(?:"[^"]*"|'[^']*'|[^'">])*?>/,
@@ -458,8 +458,10 @@ var inline = {
   em: /^\b_((?:__|[\s\S])+?)_\b|^\*((?:\*\*|[\s\S])+?)\*(?!\*)/,
   code: /^(`+)\s*([\s\S]*?[^`])\s*\1(?!`)/,
   br: /^ {2,}\n(?!\s*$)/,
+  sup: noop, /* adam-p: added for superscript support */
+  sub: noop, /* adam-p: added for subscript support */
   del: noop,
-  text: /^[\s\S]+?(?=[\$\\<!\[_*`]| {2,}\n|$)/ /* adam-p: added \$ for math support */
+  text: /^[\s\S]+?(?=[\$\\<!\[_*`^~]| {2,}\n|$)/ /* adam-p: added \$ for math support */
 };
 
 inline._inside = /(?:\[[^\]]*\]|[^\[\]]|\](?=[^\[]*\]))*/;
@@ -495,11 +497,13 @@ inline.pedantic = merge({}, inline.normal, {
  */
 
 inline.gfm = merge({}, inline.normal, {
-  escape: replace(inline.escape)('])', '~|])')(),
+  escape: replace(inline.escape)('])', '~^|])')(), /* adam-p: added \^ for superscript support */
   url: /^(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/,
-  del: /^~~(?=\S)([\s\S]*?\S)~~/,
+  del: /^~~(?=\S)([\s\S]*?\S)~~(?!~)/, /* adam-p: added (?!~) for superscript support*/
+  sup: /^\^(?=\S)([\s\S]*?\S)\^/, /* adam-p: added for superscript support */
+  sub: /^~((?:~~|[\s\S])+?)~(?!~)/,/* adam-p: added for subscript support */
   text: replace(inline.text)
-    (']|', '~]|')
+    (']|', '~^]|') /* adam-p: added \^ for superscript support */
     ('|', '|https?://|')
     ()
 });
@@ -683,6 +687,22 @@ InlineLexer.prototype.output = function(src) {
     if (cap = this.rules.del.exec(src)) {
       src = src.substring(cap[0].length);
       out += this.renderer.del(this.output(cap[1]));
+      continue;
+    }
+
+    /* adam-p: added superscript support */
+    // sup
+    if (cap = this.rules.sup.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.sup(this.output(cap[1]));
+      continue;
+    }
+
+    /* adam-p: added subscript support */
+    // sub
+    if (cap = this.rules.sub.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.sub(this.output(cap[1]));
       continue;
     }
 
@@ -876,6 +896,16 @@ Renderer.prototype.br = function() {
 
 Renderer.prototype.del = function(text) {
   return '<del>' + text + '</del>';
+};
+
+/* adam-p: added superscript support */
+Renderer.prototype.sup = function(text) {
+  return '<sup>' + text + '</sup>';
+};
+
+/* adam-p: added subscript support */
+Renderer.prototype.sub = function(text) {
+  return '<sub>' + text + '</sub>';
 };
 
 Renderer.prototype.link = function(href, title, text) {

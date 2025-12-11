@@ -182,6 +182,17 @@ describe('Markdown-Render', function() {
       expect(MarkdownRender.markdownRender(md, userprefs, marked, hljs)).to.equal(target);
     });
 
+    it('should render superscripts & subscripts', function() {
+      var md = '\\~H~2~O 2\\^^10^ = 1024';
+      var target = '<p>~H<sub>2</sub>O 2^<sup>10</sup> = 1024</p>\n';
+      expect(MarkdownRender.markdownRender(md, userprefs, marked, hljs)).to.equal(target);
+
+      // And should render subscripts inside strikethroughs
+      md = '~~deleted H~2~O~~ ~~~d~~~';
+      target = '<p><del>deleted H<sub>2</sub>O</del> <del><sub>d</sub></del></p>\n';
+      expect(MarkdownRender.markdownRender(md, userprefs, marked, hljs)).to.equal(target);
+    });
+
   });
 
 
