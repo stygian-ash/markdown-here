@@ -21,26 +21,38 @@
 // Handle the menu-item click
 function requestHandler(request, sender, sendResponse) {
   if (request && request.action === 'button-click') {
-
     // Check if the focused element is a valid render target
     const focusedElem = markdownHere.findFocusedElem(window.document);
+    const isRaw = !markdownHere.elementCanBeRendered(focusedElem);
     if (!focusedElem) {
       // Shouldn't happen. But if it does, just silently abort.
       return false;
     }
 
-    if (!markdownHere.elementCanBeRendered(focusedElem)) {
+    if (!markdownHere.elementCanBeRendered(focusedElem)
+        && !markdownHere.elementCanBeRawRendered(focusedElem)) {
       alert(Utils.getMessage('invalid_field'));
       return false;
     }
 
     const logger = function() { console.log.apply(console, arguments); };
 
-    const mdReturn = markdownHere(
-                document,
-                requestMarkdownConversion,
-                logger,
-                markdownRenderComplete);
+    let mdReturn;
+    if (isRaw) {
+      mdReturn = markdownHere.handleRaw(
+        document,
+        requestRawMarkdownConversion,
+        logger,
+        markdownRenderComplete);
+    }
+    else {
+      mdReturn = markdownHere(
+        document,
+        requestMarkdownConversion,
+        logger,
+        markdownRenderComplete,
+        isRaw);
+    }
 
     if (typeof(mdReturn) === 'string') {
       // Error message was returned.
@@ -50,7 +62,6 @@ function requestHandler(request, sender, sendResponse) {
   }
 }
 chrome.runtime.onMessage.addListener(requestHandler);
-
 
 // The rendering service provided to the content script.
 // See the comment in markdown-render.js for why we do this.
@@ -65,6 +76,14 @@ function requestMarkdownConversion(elem, range, callback) {
       var renderedMarkdown = mdhHtmlToText.postprocess(response.html);
       callback(renderedMarkdown, response.css);
     });
+}
+
+function requestRawMarkdownConversion(markdown, callback) {
+  Utils.makeRequestToPrivilegedScript(
+    document,
+    { action: 'render', mdText: markdown },
+    response => callback(response.html)
+  );
 }
 
 

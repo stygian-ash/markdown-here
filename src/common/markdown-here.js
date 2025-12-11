@@ -107,6 +107,15 @@ function elementCanBeRendered(elem) {
           (elem.ownerDocument && elem.ownerDocument.designMode === 'on'));
 }
 
+/**
+ * Determine whether an element is valid for rendering markdown to raw HTML.
+ * @param {Element} elem The currently-focused element.
+ * @return {bool} true if the element is a text input field.
+ */
+function elementCanBeRawRendered(elem) {
+    return ['TEXTAREA', 'INPUT'].includes(elem.tagName)
+}
+
 // Get the currectly selected range. If there is no selected range (i.e., it is
 // collapsed), then contents of the currently focused element will be selected.
 // Returns null if no range is selected nor can be selected.
@@ -534,6 +543,25 @@ function unrenderMarkdown(wrapperElem) {
   Utils.saferSetOuterHTML(wrapperElem, originalMdHtml);
 }
 
+function handleRaw(document, rawRenderer, logger, renderComplete) {
+  const focusedElem = findFocusedElem(document);
+  if (focusedElem.dataset.mdhIsRendered === 'true') {
+    focusedElem.dataset.mdhIsRendered = false;
+    focusedElem.value = focusedElem.dataset.mdhMarkdown;
+    renderComplete();
+  }
+  else {
+    rawRenderer(focusedElem.value, html => {
+      focusedElem.dataset.mdhIsRendered = true;
+      focusedElem.dataset.mdhMarkdown = focusedElem.value;
+      focusedElem.value = html;
+      renderComplete();
+    });
+  }
+
+  return true;
+}
+
 // Exported function.
 // The context menu handler. Does the rendering or unrendering, depending on the
 // state of the email compose element and the current selection.
@@ -631,6 +659,8 @@ function markdownHere(document, markdownRenderer, logger, renderComplete) {
 // We also export a couple of utility functions
 markdownHere.findFocusedElem = findFocusedElem;
 markdownHere.elementCanBeRendered = elementCanBeRendered;
+markdownHere.elementCanBeRawRendered = elementCanBeRawRendered;
+markdownHere.handleRaw = handleRaw;
 
 var EXPORTED_SYMBOLS = ['markdownHere'];
 
